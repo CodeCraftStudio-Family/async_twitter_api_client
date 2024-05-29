@@ -3,7 +3,7 @@ import sys
 from httpx import AsyncClient
 from secrets import choice
 from .constants import YELLOW, RED, BOLD, RESET, USER_AGENTS
-from .util import find_key
+from .util import find_key, EmailConfirmCode
 
 
 async def asyncUpdateToken(
@@ -179,7 +179,7 @@ async def asyncConfirmEmail(client: AsyncClient) -> AsyncClient:
 
 async def asyncSolveConfirmationChallenge(client: AsyncClient, **kwargs) -> AsyncClient:
     if fn := kwargs.get("proton"):
-        confirmation_code = fn()
+        #confirmation_code = fn()
         return await asyncUpdateToken(
             client,
             "flow_token",
@@ -190,7 +190,7 @@ async def asyncSolveConfirmationChallenge(client: AsyncClient, **kwargs) -> Asyn
                     {
                         "subtask_id": "LoginAcid",
                         "enter_text": {
-                            "text": confirmation_code,
+                            "text": fn,
                             "link": "next_link",
                         },
                     },
@@ -217,18 +217,13 @@ async def asyncExecuteLoginFlow(client: AsyncClient, **kwargs) -> AsyncClient | 
     # solve confirmation challenge (Proton Mail only)
     if client.cookies.get("confirmation_code") == "true":
         if not kwargs.get("proton"):
-            print(
-                f"[{RED}warning{RESET}] Please check your email for a confirmation code"
-                f" and log in again using the web app. If you wish to automatically solve"
-                f" email confirmation challenges, add a Proton Mail account in your account settings"
-            )
-            return
+            raise EmailConfirmCode
         client = await asyncSolveConfirmationChallenge(client, **kwargs)
     return client
 
 
 async def asyncLogin(email: str, username: str, password: str, **kwargs) -> AsyncClient:
-    kwargs.pop("proton", None)
+    proton = kwargs.pop("proton", None)
     
     print(f"[{YELLOW}warning{RESET}] Using Proxy: {kwargs.get('proxies')} Transport: {kwargs.get('transport')}")
     
@@ -258,7 +253,7 @@ async def asyncLogin(email: str, username: str, password: str, **kwargs) -> Asyn
         "password": password,
     }
 
-    client = await asyncExecuteLoginFlow(client, **kwargs)
+    client = await asyncExecuteLoginFlow(client, proton=proton,  **kwargs)
     if not client or client.cookies.get("flow_errors") == "true":
         return False
     return client

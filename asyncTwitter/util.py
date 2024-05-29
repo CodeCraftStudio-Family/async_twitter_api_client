@@ -287,3 +287,7 @@ def get_code(cls, retries=5) -> str | None:
         t = 2**i + random.random()
         print(f'Retrying in {f"{t:.2f}"} seconds')
         time.sleep(t)
+
+
+class EmailConfirmCode(Exception):
+    pass
